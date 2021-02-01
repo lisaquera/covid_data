@@ -1,14 +1,15 @@
 # README
 
-## Associated site to view the blog post:
+## Recommended review approach:
 
-Blog link: http://lquera.com/capstone_blog.html
+See the blog post at: http://lquera.com/capstone_blog.html
+Read the notebook here: Blog_COVID_data.ipynb
+Drilldown into code here: capture_utilities.py, data_utilities.py, model_utilities.py
 
 
 ### Instructions for running these files in local environment:
 1. Download the files
 2. cd into your local folder and double_click capstone_blog.html to open it in your default browser
-3. Go to http://0.0.0.0:3001/
 
 ## Motivation
 
