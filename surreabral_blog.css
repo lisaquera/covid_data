@@ -1,0 +1,148 @@
+/* Color scheme
+dark blue #12232e
+indigo #1f1b79
+purple #36008d
+sky blue #048eff
+slate blue #004e7c
+dark gray #5c5f58
+light gray #dce1e3
+yellow #fcd200
+*/
+
+body {
+  font-family: Arial;
+  padding: 20px;
+  background: #f1f1f1;
+}
+
+section {
+  padding: 50px 50px 50px 50px;
+}
+
+pre code {
+    background-color: #dce1e3;
+    color: #048eff;
+    display: block;
+    padding: 20px;
+}
+
+/* Page Header */
+.header {
+  padding: 30px;
+  font-size: 40px;
+  text-align: center;
+  background: white;
+  color: #1f1b79;
+}
+
+/* Blog Title */
+#title {
+    text-align: left;
+    color: #1f1b79;
+    font-size: 32px;
+}
+#subtitle {
+    text-align: left;
+    color: #004e7c;
+    font-size: 20px;
+}
+
+#byline {
+    text-align: left;
+    color: #048eff;
+    font-size: 14px;
+}
+
+#footnotes {
+    color: #1f1b79;
+}
+
+.tiptext {
+    text-align: center;
+    color: #004e7c;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.tipimage {
+    padding: 20px 100px 20px 100px;
+}
+
+.histimage {
+    /*display: inline-block;*/
+    float: left;
+    margin-right: 10px;
+    max-width: 20%;
+}
+
+.text {
+    text-align: left;
+    color: #5c5f58;
+    font-size: 16px;
+}
+
+#closinghead {
+    text-align: center;
+    color: #36008d;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.tiplist {
+    text-align: left;
+    color: #004e7c;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.sidenote {
+    text-align: left;
+    color: #36008d;
+    font-size: 14px;
+}
+
+/* Add a card effect for articles */
+.card {
+  background-color: white;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+table,
+td {
+    border: 1px solid #5c5f58;
+    color: #5c5f58;
+    margin-bottom: 20px;
+}
+
+thead,
+tfoot {
+    /*background-color: #333;
+    color: #fff; */
+
+}
+
+
+
+/* Footer */
+.footer {
+  padding: 20px;
+  text-align: center;
+  background: #ddd;
+  margin-top: 20px;
+}
+
+/* Responsive layout - when the screen is less than 800px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 800px) {
+  .leftcolumn, .rightcolumn {
+    width: 100%;
+    padding: 0;
+  }
+}

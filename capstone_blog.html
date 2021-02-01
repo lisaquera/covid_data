@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="robots" content="noindex" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Quera Blog</title>
+    <link rel="stylesheet" type="text/css" href="/surreabral_blog.css">
+    <!-- custom scripts
+    <script src="script.js"></script>
+    -->
+</head>
+<body>
+    <div class="header">
+        <h1>The Surreabral Blog</h1>
+        <h4>Tech explorations</h4>
+    </div>
+
+
+    <div class="card">
+        <section>
+            <h2 id="title">3 Things To Know About Government COVID19 Policies</h2>
+            <h4 id="subtitle">What the data says about what has impact</h4>
+            <p id="byline">Lisa Quera, <span class="date">February 2, 2021</span></p>
+            <div id="titleimage">
+                <img src="..\images\covid19_virus.jpg" alt="COVID19 coronavirus" width="300" height="200">
+            </div>
+        </section>
+        <section>
+            <div class="tiptext">
+                Introduction
+            </div>
+            <div class="text">
+                <p>The year 2020 was defined by the novel coronavirus, COVID19, pandemic.  Countries around the world instituted various policies to protect their citizens and minimize contagion.  It would be useful to know which of those policies most impacted outcomes measured in cases or deaths, or if they impacted them at all. It would also be useful to know if uncontrollable factors like percent of population living in cities, population density, or the median age of the population had as much or more of an impact than active government interventions.</p>
+                <p>I would like to 1) understand the relationships between specific policies and outcomes, and 2) determine if there is any predictive capability of policies to outcome.</p>
+                <p>Oxford University publishes a dataset of government policy interventions with COVID19 cases and deaths daily per country. I added demographic data per country representing the uncontrollable factors. To gain an understanding of policy to outcome relationships, I will evaluate statistical correlations. To determine if there are predictive capabilities, I will use model feature selection and model training feature importances.</p>
+                <p>Metrics to evaluate strength of linear relationships are Pearsons and Spearmans coefficients, with scatter plots to visualize nonlinear relationships.  Metrics to determine predictive capabilities are model scores like mean absolute error, along with intermediate scoring of feature selection and importance.</p>
+            </div>
+        </section><!--Intro section-->
+        <section>
+            <div class="tiptext">
+                Hypotheses before Data Analysis
+            </div>
+            <div class="text">
+                <p>Based on the way that the novel coronavirus and its variants flow through a population and the attributes of people most impacted, you might start with these ideas:
+                </p>
+                <ul>
+                    <li>The stronger the actions taken by governments, the lower the contagion rate, as measured by confirmed cases, and the lower the casualty rate, as measured by deaths.  There should be some identifiable, measurable correlations between policies and outcomes.</li>
+                    <li>The strongest correlations might be inverse relationships between policies that restrict physical proximity such as school closings or limited private gatherings, thus minimizing ability to spread the disease, and outcomes.</li>
+                    <li>Uncontrollable factors like the percentage of population living closely together in urban environments or the median age of the population could have as much or more impact than active interventions.</li>
+                </ul>
+            </div>
+        </section><!--Hypothesis section-->
+        <section><!--Capture data section-->
+            <div class="tiptext">
+                The Datasets
+            </div>
+            <div class="text">
+                <p>Note: All code to support the analysis is available on <a href='https://github.com/lisaquera/covid_data'>Github</a></p>
+                <p>BigQuery is a columnar database cloud service from Google Cloud Platform.  They generously host numerous public datasets in bigquery-public-data that you can access for free with a registered project. <span class='sidenote'>(Note: charges begin after 1TB of processing.)</span> I downloaded the oxford_policy_tracker table from the covid19_govt_response database to the DSND_covid19_policy_tracker.csv file. </p>
+                <p>The Oxford Policy Tracker has data on each country's policy choices and daily outcomes in terms of cumulative confirmed cases and deaths. The dataset provides multiple categories of information for various policies and policy types. For policies such as school closing, there is a binary flag - action taken or not, an ordinal ranking - a 0-x rating for intensity of action, and free text notes.  For financial policies there is a monetary amount. There is also a summary metric, the stringency index, which  is a rating from zero to 100 on the intensity of collective measures taken.  These data points are collected per day, country, and occasionally region.</p>
+                <p>Several adjustments to the data need to be made.  The first thing to note is that the outcome data is both absolute and cumulative.  The confirmed cases and deaths have not been normalized by population to represent relative contagion and casualty rates. Without adjustment, comparing 10,000 cases in Portugal against the same number in India provides no information. First we must add population per country and then calculate percentages for each outcome.</p>
+                <p>As we add the population data[1], we can also add other country-specific data to test the hypothesis that uncontrollable factors have significant impact on contagion and casualty rates. These are percent of population living in urban centers, density of population, and particularly interesting for casualty rates - median age.</p>
+                <p>The second thing to adjust is the cumulative nature of the outcome data. In order to understand the impact of a policy, you need to evaluate it against the change in outcomes. For example, are cases increasing faster or slower based on internal movement restrictions? Also, a very common problem with time-series data is that there is a mutual dependency between any variable in the data: time.  Since the stringency index is trending over time, and the per capita contagion rate is trending over time, they are both dependent on time and thus automatically correlated with each other.  This is often called “Secular Trend”.  One way to avoid this is to use first differences, or <a href='https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.pct_change.html'>the pct_change function</a> in Pandas. In order to have more analysis options, we will also track the binary direction, simply up or down.</p>
+                <p>A key point is that I am not interested in time-series analysis, but rather the relationship of a policy to an outcome at any point in time. I want to remove time as a dependent factor and understand the values as singular rather than sequential datapoints.[2]</p>
+                <p>Then there are the standard data cleaning steps for any dataset: dropping rows missing key metrics, filling or eliminating nulls, and scaling diverse units like the financial policies.  For the latter, I used <a href='https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html'>MinMaxScaler</a> to preserve the shape of the original distribution. Once the dataset has been enhanced, adjusted, and cleaned, we can start to mine the data for information.</p>
+            </div>
+        </section><!--Intro section-->
+        <section><!--Prepare data section-->
+            <div class="tiptext">
+                Prepare the Data
+            </div>
+            <div class="text">
+                <p>Note: Please see the Blog_COVID_data notebook in <a href='https://github.com/lisaquera/covid_data'>Github</a> for details on dataset statistics before and after transformations, including the code for preprocessing and visualizations of key features.  The details are too lengthy for this post.</p>
+            </div>
+        </section><!--Prepare data section-->
+        <section><!--Analyze correlations section-->
+            <div class="tiptext">
+                Analyze Correlations
+            </div>
+            <div class="text">
+                <p>Correlation is the degree to which any two data points are related. For statistical analysis, the <a href='https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.pearsonr.html'>Pearson correlation coefficent</a> is the degree to which they are linearly related and is represented by a float between -1.0 and 1.0. The relationship is linear only when a change in one feature is associated with a proportional change in the other. A negative coefficient indicates an inverse relationship and a zero would be no relationship at all.  The Pandas corr function uses Pearson's calculation for correlation between numeric columns. <span class='sidenote'>(Note: I wrote my own function using scipy.stats for a slightly cleaner output.)</span> </p>
+                <p>If you want a broader perspective, you can use scipy for <a href='https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.spearmanr.html'>Spearman's correlation</a>. The difference is that Spearman does not assume a constant, proportional rate of change, simply that there is a directional change.  Spearman captures monotonic relationships as well as linear relationships. Spearman is generally considered best for ranked data.</p>
+                <p></p>
+                <p>Remember that the policy tracker provides two ways to evaluate policies - a binary flag indicating whether the government chose to implement the policy or not, and an intensity ranking for how the goverment chose to implement the policy, eg. partially or comprehensively.  The correlations above absolute(0.10) are in this table. </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th colspan="3">Correlations Found</th>
+                        </tr>
+                        <tr>
+                            <td>Datatype</td>
+                            <td>Feature</td>
+                            <td>Spearmans</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Active Flag</td>
+                            <td>Stay at home rqmts</td>
+                            <td>-0.113</td>
+                        </tr>
+                        <tr>
+                            <td>Active Flag</td>
+                            <td>Restricted internal movement</td>
+                            <td>-0.148</td>
+                        </tr>
+                        <tr>
+                            <td>Active Flag</td>
+                            <td>Intl travel controls</td>
+                            <td>-0.154</td>
+                        </tr>
+                        <tr>
+                            <td>Ranked Intensity</td>
+                            <td>Stringency index</td>
+                            <td>-0.241</td>
+                        </tr>
+                        <tr>
+                            <td>Ranked Intensity</td>
+                            <td>School closing</td>
+                            <td>-0.231</td>
+                        </tr>
+                        <tr>
+                            <td>Ranked Intensity</td>
+                            <td>Workplace closing</td>
+                            <td>-0.203</td>
+                        </tr>
+                        <tr>
+                            <td>Ranked Intensity</td>
+                            <td>Cancel public events</td>
+                            <td>-0.160</td>
+                        </tr>
+                        <tr>
+                            <td>Ranked Intensity</td>
+                            <td>Restrictions on Gatherings</td>
+                            <td>-0.163</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="tiptext">
+                Visualize Feature Distribution
+            </div>
+            <div class = "text">
+                <p> Let's look at histograms for a few of the key policies.  You can see that most countries did eventually implement strong controls but only in school closings did the majority do the maximum possible.  The stringency index in particular is more widely distributed than one would hope for.
+                </p>
+            </div>
+            <div class="histimage">
+                <img src="..\images\stringency_index_hist_3x3.png" alt="Histogram of stringency index ratings." width="300" height="300">
+            </div>
+            <div class="histimage">
+                <img src="..\images\school_closing_hist_3x3.png" alt="Histogram of school closing ratings." width="300" height="300">
+            </div>
+            <div class="histimage">
+                <img src="..\images\workplace_closing_hist_3x3.png" alt="Histogram of workplace closing ratings." width="300" height="300">
+            </div>
+            <div class="histimage">
+                <img src="..\images\international_travel_contols_hist_3x3.png" alt="Histogram of international travel control ratings." width="300" height="300">
+            </div>
+        </section><!--Analyze correlations section-->
+        <section><!--Visualize correlations section-->
+            <div class="tiptext">
+                Visualize Correlations
+            </div>
+            <div class="text">
+                <p>The limitation of the above correlation functions is that they only capture linear relationships. What about trying to understand the relationship between static elements like urban_perc or median_age and outcomes? Scatter plots are useful to see non-linear relationships.</p>
+                <p>One hypothesis, based on the way the coronavirus spreads through aerosols and droplets, is that more dense living limits the ability to avoid proximity to others. Let's compare percentage of population living in cities with cases as percent of population.</p>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\case_perc_pop_and_urban_perc_5x5.png" alt="Scatter plot showing cases as percent of population against percent of population living in cities." width="500" height="500">
+            </div>
+            <div class="text">
+                <p>Another hypothesis, based on the established correlation between severity of disease and age, is that a higher proportion of older citizens will inevitably lead to higher casualty rates. Let's compare the median age of the population with deaths as percent of population.</p>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\death_perc_pop_and_median_age_5x5.png" alt="Scatter plot showing deaths in population against median age." width="500" height="500">
+            </div>
+
+        </section><!--Visualize correlations section-->
+        <section><!--Check hypotheses section-->
+            <div class="text">
+                <p>While the direction of the relationships between active policies and outcomes is as expected, ie. a negative correlation, it is looking like the correlations are much weaker than hoped for.  To be comfortable making recommendations, you'd like to see correlations over 0.50 absolute. Let's try another approach to see if we can get more clarity.  </p>
+            </div>
+        </section><!--Check hypotheses section-->
+
+        <section><!--Model intro section-->
+            <h3>Models</h3>
+            <p>Another approach to understanding policies and outcomes, is to use models to identify which features improve predictive capability. Let's look at feature selection and feature importance</p>
+        </section><!--Model intro section-->
+        <section><!--Feature selection section-->
+            <div class="tiptext">
+                Model feature selection
+            </div>
+            <div class="text">
+                <p>Feature selection is the process of testing the relationships between each training feature and the target feature and selecting the ones with the strongest relationship. It shows the impact of the variable on the model success metric and the higher it is, the more valuable the feature's predictive capability. Negative feature importance means that the feature increases the loss and either the model is underfitting or the model would benefit from removing the feature.</p>
+                <p>SelectKBest is a univariate method that uses statistical means to evaluate the relationships and keeps the K highest-scoring features. RFE (Recursive Feature Elimination) fits a model on all features and then recursively eliminates the one with the lowest importance score until it gets to the K highest scoring features.</p>
+            </div>
+            <div class="text">
+                <p>The univariate method selected these policies to train:</p>
+                <p>[Stay at home requirements, public information campaigns, stringency index, international travel controls, canceling public events, contact tracing, restricted gatherings, school closing, testing policy, closing public transit, restrictions on internal movements, and workplace closing]</p>
+                <p>The Recursive Feature Elimination method selected:</p>
+                <p>[School closing, workplace closing, canceling public events, restricted gatherings, closing public transit, stay at home requirements, restrictions on internal movements, international travel controls, public information campaigns, fiscal measures, emergency healthcare investment, and vaccine investment]</p>
+            </div>
+        </section><!--Feature selection section-->
+        <section><!--Predictive capabilities section-->
+            <div class="tiptext">
+                Predictive Capabilities
+            </div>
+            <div class="text">
+                <p>You can use feature selection in your model training process and then access the feature_importance_ attribute to visualize which features impacted the model most.  I chose Random Forests (an ensemble of bagged Decision Trees) because the random splits create better tree diversity with less overfitting than simple Decision Trees. The feature importances are weighted averages of how much the feature reduces impurities across all trees in the forest.</p>
+                <p>First, let’s look at using SelectKBest feature selection for a RandomForestRegressor optimized for the Mean Absolute Error. </p>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\RF_stat_1_10x10_1.png" alt="Feature importance for Random Forest with statistical feature selection." width="900" height="500">
+            </div>
+            <div class="text">
+                <p>Next, let’s look at using Recursive Feature Elimination feature selection for a RandomForestRegressor optimized for the Mean Absolute Error.</p>
+            </div>
+            <div class='text'>
+                <p>A note on metrics: MAE, mean absolute error, is best suited to the task at hand because my goal is interpretability, teasing out the underlying relationships of policies and outcomes.  MAE is considered superior for interpretability because it simply describes average errors and is not as impacted by test sample size.  The downside is the significantly larger computation time. (“When the random forest regressor optimizes for MSE it optimizes for the L2-norm and a mean-based impurity metric. But when the regressor uses the MAE criterion it optimizes for the L1-norm which amounts to calculating the median.”[3])</p>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\RF_RFE_1_10x10_2.png" alt="Feature importance for Random Forest with recursive feature elimination." width="900" height="500">
+            </div>
+            <div class="text">
+                <p>Lastly, since we calculated the directional change of the outcomes, we can reformulate the problem to a binary classification - cases up or cases down. Let’s see if that makes anything clearer using SelectKBest feature selection for a RandomForestClassifier optimized for information gain, ie. entropy.</p>
+                <p>Another note on metrics: Classification metrics evaluate correct class assignment.  Accuracy is the simplest, merely number of correct assignments over total assignments. However, accuracy is not a good metric when you have imbalanced classes, as we do in this case.  Precision is the number of correct positives divided by all predicted positives, correct and incorrect. Recall is the number of correct positives divided by all actual positives, correct positives and false negatives.  Since what is most important in our case is the relationship between policies and desired outcome of a decrease in cases, precision is our best metric. Precision is less impacted by the large number of undesirable outcomes (increases in cases) and measures the probability of correct detection.</p>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\RF_stat_1_10x10_cfr.png" alt="Feature importance for Random Forest Classifier with statistical feature selection." width="900" height="500">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th colspan="3">Most Important Features</th>
+                    </tr>
+                    <tr>
+                        <td>Model/Selection</td>
+                        <td>Feature</td>
+                        <td>Importance</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>RFRegressor/Statistical</td>
+                        <td>Stay at home rqmts</td>
+                        <td>0.197</td>
+                    </tr>
+                    <tr>
+                        <td>RFRegressor/RFE</td>
+                        <td>International Travel Controls</td>
+                        <td>0.199</td>
+                    </tr>
+                    <tr>
+                        <td>RFRegressor/RFE</td>
+                        <td>School Closing</td>
+                        <td>0.137</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/RFE</td>
+                        <td>Stringency index</td>
+                        <td>0.293</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section><!--Predictive capabilities section-->
+        <section><!--Conclusions-->
+            <div id="closinghead">
+                <p>Conclusions</p>
+            </div>
+            <div class="text">
+                <p>Now that we've analyzed the data and run it through some models, what do we know about our original hypotheses?</p>
+                <ul>
+                    <li>The correlations between policies and outcomes are much weaker than hoped for.</li>
+                    <li>The strongest of the admittedly weak correlations are indeed the proximity-impacting policies such as stay at home requirements, school closings, workplace closing, restrictions on travel, etc.  This aligns with a logical understanding of how the disease spreads.</li>
+                    <li>Government capabilities are indeed bounded by uncontrollable factors like urban percentages and median age. This aligns with known data, that is, that proximity is a key factor in contagion and older citizens will die at higher rates than younger ones.</li>
+                </ul>
+                <p>While the data did support the initial logic, the correlation coefficients are too small to enable strong recommendations for any specific policy. This is disappointing but perhaps as more data accumulates, better correlations will emerge and we will be more prepared for the next aerosol/droplet contagious disease.
+            </div>
+            <div class="tiptext">
+                <p>Technical Lessons Learned.</p>
+            </div>
+            <div class="text">
+                <p>I started with an idea: data on government policies and disease outcomes might help identify which policies are most impactful.  I gathered data from multiple sources, did the necessary cleaning and transformations, and used statistical analysis to identify correlations. Then I used feature selection and Random Forest models to identify predictive features. Lastly, I evaluated the original hypotheses against the accumulated data. </p>
+            </div>
+
+            <div class="text">
+                <ol>
+                    <li>Why did some techniques work better? Since the feature correlations were fairly consistent in their weakness and in their selected priority features, I'm not certain any technique DID work better than the other. They all relied on linear regression to some extent (RFE used linear regression, too) and that only captures linear relationships. For example, the correlation visible in the graphic of the static attributes would not have been captured in the statistical or modeled calculations.</li>
+                    <li>What was the most difficult part? The two most difficult parts were 1) determining which data transformations would be most useful, and 2) determining which input variations, ie. binary flags vs ordinal policy intensities, would align best with which outcome variations, ie. changes in amounts vs changes in direction.  I tried to use as much logic as possible but there was a lot of trial and error involved.[4]</li>
+                    <li>What is one thing that could be improved? To improve the process, you could do more class and input balancing. For example, the inputs were weighted towards countries that tracked regions, such as the United States and Brazil. You could try taking only the totals for those countries and dropping the regions as potentially noise. (I kept them in to maximize number of datapoints available but more is not necessarily always better.) And for the classification model, the outcomes were unfortunately imbalanced towards increases in cases rather than the desired decreases. </li>
+                </ol>
+            </div>
+            <div class="text">
+                <p>Stay safe out there!</p>
+            </div>
+        </section id='footnotes'>
+            <div class="tiptext">
+                Footnotes
+            </div>
+            <div>
+                <p><span>[1]</span> The demographic data was scraped from worldometers.info using the BeautifulSoup library. Since the data is being used for this analysis only, and not used for any commercial purpose, there should be no harm to worldometers.info from this action. Please see the capture_utilities.py file on <a href='https://github.com/lisaquera/covid_data'>Github</a> for the code used.
+                </p>
+            </div>
+            <div>
+                <p><span>[2]</span> If I was interested in using the time data, I would need to shift the data to provide an appropriate lag between policy and outcome. Pandas again has a handy function to help, <a href='https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.shift.html'>shift</a>.  Aggregate the data by week and then shift the binary policy columns to create a one week lag for percent change in outcomes.
+                </p>
+            </div>
+            <div>
+                <p><span>[3]</span> https://stackoverflow.com/questions/57243267/why-is-training-a-random-forest-regressor-with-mae-criterion-so-slow-compared-to
+                </p>
+            </div>
+            <div>
+                <p><span>[4]</span> Sadly, a tragic amount of jupyter notebooks were killed in the process…”Well, THAT didn’t work…”</p>
+            </div>
+
+
+        <section>
+        </section>
+        <section>
+            <div class="sidenote">
+                <h5>Acknowledgement</h5>
+                <p>This blogpost was created to meet the requirements of Udacity’s Data Science Nanodegree, Project Capstone.</p>
+                <p>Gratitude to Oxford University and Google Cloud Platform for the COVID data and to worldometers.info for the demographic data.
+                </p>
+            </div>
+        </section>
+    </div><!-- card-->
+
+
+    <div class="footer">
+      <h5>Copyright by Lisa Quera, 2021</h5>
+    </div>
+
+</body>
+</html>
