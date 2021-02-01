@@ -2,9 +2,11 @@
 
 ## Recommended review approach:
 
-See the blog post at: http://lquera.com/capstone_blog.html
-Read the notebook here: Blog_COVID_data.ipynb
-Drilldown into code here: capture_utilities.py, data_utilities.py, model_utilities.py
+1) See the blog post at: http://lquera.com/capstone_blog.html
+
+2) Read the notebook here: Blog_COVID_data.ipynb
+
+3) Drilldown into code here: capture_utilities.py, data_utilities.py, model_utilities.py
 
 
 ### Instructions for running these files in local environment:
