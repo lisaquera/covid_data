@@ -3,46 +3,58 @@
 import pandas as pd
 import numpy as np
 import datetime
+from sklearn.preprocessing import MinMaxScaler
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 import matplotlib.pyplot as plt
 
-cols_indicators = ['country_name', 'region_name', 'date',
-                'confirmed_cases', 'deaths',
-                'density', 'median_age', 'population', 'urban_perc',
-                'stringency_index',
-                'school_closing_flag',
-                'workplace_closing_flag',
-                'cancel_public_events_flag',
-                'restrictions_on_gatherings_flag',
-                'close_public_transit_flag',
-                'stay_at_home_requirements_flag',
-                'restrictions_on_internal_movement_flag',
-                'international_travel_controls',
-                'income_support_flag',
-                'debt_contract_relief',
-                'fiscal_measures',
-                'international_support',
-                'public_information_campaigns_flag',
-                'testing_policy',
-                'contact_tracing',
-                'emergency_healthcare_investment',
-                'vaccine_investment',
-               ]
+cols_binary = ['geo','country_name', 'region_name','date',
+        'case_direction','death_direction',
+        'stringency_direction',
+       'school_closing_flag', 'workplace_closing_flag',
+       'cancel_public_events_flag',
+       'restrictions_on_gatherings_flag',
+       'close_public_transit_flag',
+       'stay_at_home_requirements_flag',
+       'restrictions_on_internal_movement_flag',
+       'international_travel_controls',
+       'income_support_flag',
+       'public_information_campaigns_flag',
+       'testing_policy',
+       'contact_tracing',
+       'debt_contract_relief_flag',
+       'fiscal_measures_flag',
+       'international_support_flag',
+       'emergency_healthcare_investment_flag',
+       'vaccine_investment_flag']
 
-cols_ordinals = ['country_name', 'region_name', 'date',
-                'confirmed_cases', 'deaths',
-                'density', 'median_age', 'population', 'urban_perc',
-        'stringency_index',
-       'school_closing', 'workplace_closing',
-       'cancel_public_events', 'restrictions_on_gatherings',
-       'close_public_transit', 'stay_at_home_requirements',
-       'restrictions_on_internal_movement',
-       'international_travel_controls', 'income_support',
-       'debt_contract_relief', 'fiscal_measures', 'international_support',
-       'public_information_campaigns', 'testing_policy',
-       'contact_tracing', 'emergency_healthcare_investment',
-       'vaccine_investment']
+cols_ordinal = ['geo','country_name', 'region_name','date',
+                'case_perc_change','death_perc_change',
+                'case_direction','death_direction',
+                'stringency_index',
+                'school_closing', 'workplace_closing',
+                'cancel_public_events', 'restrictions_on_gatherings',
+                'close_public_transit', 'stay_at_home_requirements',
+                'restrictions_on_internal_movement',
+                'international_travel_controls',
+                'public_information_campaigns','testing_policy',
+                'contact_tracing',
+                'scaled_income_support', 'scaled_debt_contract_relief',
+               'scaled_fiscal_measures','scaled_international_support',
+               'scaled_emergency_healthcare_investment',
+               'scaled_vaccine_investment',
+                'scaled_population','scaled_density',
+                'scaled_urban_perc','scaled_median_age'
+               ]
+cols_outcomes = ['confirmed_cases', 'deaths',
+                'case_perc_pop', 'death_perc_pop',
+                'case_perc_change','death_perc_change',
+                'case_direction','death_direction']
+
+train_binary = cols_binary[6:]
+target_binary = 'case_direction'
+train_ordinals = cols_ordinal[8:]
+target_ordinal = 'case_perc_change'
 
 def get_merged_df(filestring1, filestring2, merge_field):
     '''Merge the covid related data with the country demographic data
@@ -68,25 +80,23 @@ def get_cleaned_stats(df):
     df = df.loc[(df['confirmed_cases'] > 0.0) & (df['deaths'] > 0.0)]
     # drop all rows missing summary indicator
     df = df.loc[df['stringency_index'].notnull()]
-    # get the change in stringency_index
-    df['stringency_change'] = np.round(df['stringency_index'].pct_change(), decimals=2)
-    # catch calculation infinites
-    df = df.drop(df.index[list(np.where(np.isfinite(df['stringency_change']) == False))])
     # ensure date field is datetime to manipulate more easily
     df['date'] = pd.to_datetime(df['date'])
     # make regional data consistent: if NA, cumulative for the country
     df['region_name'] = df['region_name'].fillna('Total')
     # create a combined field to break up larger countries into regions
     # (particularly US and Brazil)
-    df['geo'] = df['country_name'] + df['region_name']
+    df['geo'] = df['country_name'] + '_'+ df['region_name']
+    # drop unused identifying columns
+    df = df.drop(['alpha_3_code','region_code'], axis=1)
+    # drop uncategorized policy columns
+    df = df.drop(['misc_wildcard','misc_wildcard_notes'], axis=1)
     # sort by country_name, region_name, date
-    df.sort_values(['country_name', 'region_name', 'date'],
-                    ascending=True,
-                    inplace=True,
-                    na_position='last')
+    df.sort_values(['geo', 'date'], ascending=True,
+                      inplace=True, na_position='last')
     return df
 
-def get_normed_targets(df):
+def get_adjusted_outcomes(df):
     '''Original data provided has only absolute data while relative data is
     needed for comparisons. Normalize by population or change in absolute.
     Input: df = cleaned dataframe of covid data
@@ -100,22 +110,90 @@ def get_normed_targets(df):
     # catch calculation infinites
     df = df.drop(df.index[list(np.where(np.isfinite(df['death_perc_change']) == False))])
     # normalize the raw statistics by population
-    df['cases_perc_capita'] = (df['confirmed_cases'] / df['population'])
-    df['deaths_perc_capita'] = (df['deaths'] / df['population'])
+    df['case_perc_pop'] = (df['confirmed_cases'] / df['population'])
+    df['death_perc_pop'] = (df['deaths'] / df['population'])
+    # get whether outcomes are increasing (0) or decreasing (1)
+    df['case_direction'] = df['case_perc_change'].apply(lambda x: 0 if x <= 0 else 1)
+    df['death_direction'] = df['death_perc_change'].apply(lambda x: 0 if x <= 0 else 1)
     return df
 
-def get_working_df(filestring1, filestring2, merge_field, cols_to_use):
+def get_adjusted_inputs(df):
+    '''Adjust some input features to be more useful. First get the change and direction for the summary indicator, stringency_index. The scale diverse units for financial and demographic features. For financial measures, also add a binary flag to indicate the presence or lack of that policy.
+    Input: df as dataframe of COVID policy data
+    Output: df as dataframe with adjusted input features
+    '''
+    # enhance the summary metric, the stringency_index
+    # get the change in stringency_index
+    df['stringency_change'] = np.round(df['stringency_index'].pct_change(), decimals=2)
+    # remove calculation infinites
+    df = df.drop(df.index[list(np.where(np.isfinite(df['stringency_change']) == False))])
+    # get the stringency direction, are governments tightening (1) or loosening (0) policy?
+    df['stringency_direction'] = df['stringency_change'].apply(lambda x: 0 if x < 0 else 1)
+    # do quick cleaning step to prevent calculation errors
+    if df.isnull().sum().sum() > 0:
+        df = df.fillna(value=0)
+    # monetary values are different scale from binary or ordinal rankings
+    cols_financial_amts = ['income_support', 'debt_contract_relief',
+                    'fiscal_measures', 'international_support',
+                    'emergency_healthcare_investment', 'vaccine_investment']
+    scaler = MinMaxScaler()
+    for col in cols_financial_amts:
+        # scale the financial amounts to range [0..1]
+        scf_colname = 'scaled_'+col
+        df[scf_colname] = scaler.fit_transform(df[[col]])
+        # get the binary for whether policy was active (>0 allocated) or not
+        bi_colname = col+'_flag'
+        df[bi_colname] = df[col].apply(lambda x: 0 if x <= 0 else 1)
+    # scale the demographic data
+    cols_demos = ['population', 'urban_perc', 'density', 'median_age']
+    for col in cols_demos:
+        # scale the diverse units to range [0..1]
+        scd_colname = 'scaled_'+col
+        df[scd_colname] = scaler.fit_transform(df[[col]])
+    return df
+
+def remove_notes(df):
+    '''Subset the free text columns and drop them from main df
+    Input: df as dataframe with notes columns
+    Output: df without notes columns and df with only notes columns
+    '''
+    cols_notes = ['geo','country_name', 'region_name','date',
+                'confirmed_cases', 'deaths',
+                'case_perc_pop', 'death_perc_pop',
+                'case_perc_change','death_perc_change',
+                'case_direction','death_direction',
+                'school_closing_notes','workplace_closing_notes',
+                'cancel_public_events_notes',
+                'restrictions_on_gatherings_notes',
+                'close_public_transit_notes',
+                'stay_at_home_requirements_notes',
+                'restrictions_on_internal_movement_notes',
+                'international_travel_controls_notes','income_support_notes',
+                'debt_contract_relief_notes', 'fiscal_measures_notes',
+                'international_support_notes',
+                'public_information_campaigns_notes',
+                'testing_policy_notes', 'contact_tracing_notes',
+                'emergency_healthcare_investment_notes',
+                'vaccine_investment_notes']
+    covid_notes = df[list(df[cols_notes])]
+    cols_to_drop = cols_notes[12:]
+    df = df.drop(cols_to_drop, axis=1)
+    return df, covid_notes
+
+def get_working_df(filestring1, filestring2, merge_field):
     '''Convert csv files to cleaned, normed dataframe for analysis & modeling.
     Input: filestring1 = string for filepath of first csv
         filestring2 = string for filepath of second csv
         merge_field = string representing field to join on
-    Output: dataframe of covid statistics ready for analysis and modeling
+    Output: cov_stats = df of covid statistics ready for analysis and modeling
+        cov_notes = dataframe with the free text columns
     '''
     cov = get_merged_df(filestring1, filestring2, merge_field)
-    cov_stats = cov[list(cols_to_use)]
-    cov_stats = get_cleaned_stats(cov_stats)
-    cov_stats = get_normed_targets(cov_stats)
-    return cov_stats
+    cov_stats = get_cleaned_stats(cov)
+    cov_stats = get_adjusted_outcomes(cov_stats)
+    cov_stats = get_adjusted_inputs(cov_stats)
+    cov_stats, cov_notes = remove_notes(cov_stats)
+    return cov_stats, cov_notes
 
 # how many unique instances for each variable?
 def get_value_diversity(df):

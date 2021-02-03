@@ -35,7 +35,10 @@
                 <p>The year 2020 was defined by the novel coronavirus, COVID19, pandemic.  Countries around the world instituted various policies to protect their citizens and minimize contagion.  It would be useful to know which of those policies most impacted outcomes measured in cases or deaths, or if they impacted them at all. It would also be useful to know if uncontrollable factors like percent of population living in cities, population density, or the median age of the population had as much or more of an impact than active government interventions.</p>
                 <p>I would like to 1) understand the relationships between specific policies and outcomes, and 2) determine if there is any predictive capability of policies to outcome.</p>
                 <p>Oxford University publishes a dataset of government policy interventions with COVID19 cases and deaths daily per country. I added demographic data per country representing the uncontrollable factors. To gain an understanding of policy to outcome relationships, I will evaluate statistical correlations. To determine if there are predictive capabilities, I will use model feature selection and model training feature importances.</p>
-                <p>Metrics to evaluate strength of linear relationships are Pearsons and Spearmans coefficients, with scatter plots to visualize nonlinear relationships.  Metrics to determine predictive capabilities are model scores like mean absolute error, along with intermediate scoring of feature selection and importance.</p>
+                <p>Metrics to evaluate strength of linear relationships are Pearsons and Spearmans coefficients, with scatter plots to visualize nonlinear relationships.  Metrics to determine predictive capabilities are mean absolute error or precision rate, along with intermediate scoring of feature selection and importance.</p>
+                <p>For modeling, Decision Trees can provide some of the best interpretability.  I chose Random Forests (an ensemble of bagged Decision Trees) because the random splits create better tree diversity with less overfitting than simple Decision Trees. The feature importances are weighted averages of how much the feature reduces impurities across all trees in the forest.</p>
+                <p>For the regression modeling with a Random Forest Regressor, Mean Absolute Error, MAE, is best suited to the task at hand because my goal is interpretability, teasing out the underlying relationships of policies and outcomes. MAE is considered superior for interpretability because it simply describes average errors and is not as impacted by test sample size.</p>
+                <p>For the classification modeling with a Random Forest Classifier, the choice of metric is determined by the class imbalance.  The most desirable outcome is a decrease in cases, but there are too few instances of that, so a desirable outcome is defined as no change or decrease, coming in at about 33% of targets.  Precision is the number of correct positives divided by all predicted positives, correct and incorrect. Since what is most important in our case is the relationship between policies and the smaller class, precision is our best metric, measuring the probability of correct detection.</p>
             </div>
         </section><!--Intro section-->
         <section>
@@ -72,7 +75,7 @@
                 Prepare the Data
             </div>
             <div class="text">
-                <p>Note: Please see the Blog_COVID_data notebook in <a href='https://github.com/lisaquera/covid_data'>Github</a> for details on dataset statistics before and after transformations, including the code for preprocessing and visualizations of key features.  The details are too lengthy for this post.</p>
+                <p>Note: Please see the Blog_COVID_Data notebook in <a href='https://github.com/lisaquera/covid_data'>Github</a> for details on dataset statistics before and after transformations, including the code for preprocessing and visualizations of key features.  The details are too lengthy for this post.</p>
             </div>
         </section><!--Prepare data section-->
         <section><!--Analyze correlations section-->
@@ -146,17 +149,19 @@
                 <p> Let's look at histograms for a few of the key policies.  You can see that most countries did eventually implement strong controls but only in school closings did the majority do the maximum possible.  The stringency index in particular is more widely distributed than one would hope for.
                 </p>
             </div>
-            <div class="histimage">
+            <div>
                 <img src="..\images\stringency_index_hist_3x3.png" alt="Histogram of stringency index ratings." width="300" height="300">
             </div>
-            <div class="histimage">
+            <div>
                 <img src="..\images\school_closing_hist_3x3.png" alt="Histogram of school closing ratings." width="300" height="300">
+            </br>
             </div>
-            <div class="histimage">
+            <div>
                 <img src="..\images\workplace_closing_hist_3x3.png" alt="Histogram of workplace closing ratings." width="300" height="300">
             </div>
-            <div class="histimage">
+            <div>
                 <img src="..\images\international_travel_contols_hist_3x3.png" alt="Histogram of international travel control ratings." width="300" height="300">
+            </br>
             </div>
         </section><!--Analyze correlations section-->
         <section><!--Visualize correlations section-->
@@ -186,7 +191,9 @@
 
         <section><!--Model intro section-->
             <h3>Models</h3>
-            <p>Another approach to understanding policies and outcomes, is to use models to identify which features improve predictive capability. Let's look at feature selection and feature importance</p>
+            <div class='text'>
+                <p>Another approach to understanding policies and outcomes, is to use models to identify which features improve predictive capability. Let's look at feature selection and feature importance in the context of model training.</p>
+            </div>
         </section><!--Model intro section-->
         <section><!--Feature selection section-->
             <div class="tiptext">
@@ -209,31 +216,90 @@
             </div>
             <div class="text">
                 <p>You can use feature selection in your model training process and then access the feature_importance_ attribute to visualize which features impacted the model most.  I chose Random Forests (an ensemble of bagged Decision Trees) because the random splits create better tree diversity with less overfitting than simple Decision Trees. The feature importances are weighted averages of how much the feature reduces impurities across all trees in the forest.</p>
-                <p>First, let’s look at using SelectKBest feature selection for a RandomForestRegressor optimized for the Mean Absolute Error. </p>
+                <p>First, let’s look at using SelectKBest feature selection for a RandomForestRegressor optimized for the Mean Absolute Error. Parameters used were: </p>
+                <ul>
+                    <li>Number of features to select: 12</li>
+                    <li>Selection type: Univariate Feature Selection</li>
+                    <li>Selection scoring function: 'f_regression'</li>
+                    <li>Model type: RandomForestRegressor</li>
+                    <li>Number of estimators: 100</li>
+                    <li>Criterion: 'mae'</li>
+                </ul>
             </div>
             <div class="tipimage">
-                <img src="..\images\RF_stat_1_10x10_1.png" alt="Feature importance for Random Forest with statistical feature selection." width="900" height="500">
+                <img src="..\images\RF_reg_stat_ordinals_10x10.png" alt="Feature importance for Random Forest with statistical feature selection." width="900" height="500">
             </div>
             <div class="text">
-                <p>Next, let’s look at using Recursive Feature Elimination feature selection for a RandomForestRegressor optimized for the Mean Absolute Error.</p>
+                <p>Next, let’s look at using Recursive Feature Elimination feature selection for a RandomForestRegressor optimized for the Mean Absolute Error.  Parameters used were: </p>
+                <ul>
+                    <li>Number of features to select: 12</li>
+                    <li>Selection type: Recursive Feature Elimination</li>
+                    <li>Selection scoring function: 'f_regression'</li>
+                    <li>Model type: RandomForestRegressor</li>
+                    <li>Number of estimators: 100</li>
+                    <li>Criterion: 'mae'</li>
+                </ul></p>
             </div>
             <div class='text'>
                 <p>A note on metrics: MAE, mean absolute error, is best suited to the task at hand because my goal is interpretability, teasing out the underlying relationships of policies and outcomes.  MAE is considered superior for interpretability because it simply describes average errors and is not as impacted by test sample size.  The downside is the significantly larger computation time. (“When the random forest regressor optimizes for MSE it optimizes for the L2-norm and a mean-based impurity metric. But when the regressor uses the MAE criterion it optimizes for the L1-norm which amounts to calculating the median.”[3])</p>
             </div>
             <div class="tipimage">
-                <img src="..\images\RF_RFE_1_10x10_2.png" alt="Feature importance for Random Forest with recursive feature elimination." width="900" height="500">
+                <img src="..\images\RF_reg_RFE_ordinals_10x10.png" alt="Feature importance for Random Forest with recursive feature elimination." width="900" height="500">
+            </div>
+            <div class='tiptext'>
+                Regression Model Evaluation
+            </div>
+            <div class='text'>
+                <p>Mean Average Error is 0.022 on the test data. That looks so encouraging! However, 82% of the values in the target are smaller than 0.04. So in fact, the error is 50% or more of the target value, which is not very encouraging at all.  Another concern is the variability in the cross validation scores: [-0.026,  0.0014,  0.023]. Let's try another approach.
+                </p>
+            </div>
+            <div class='tiptext'>
+                Classification Model
             </div>
             <div class="text">
-                <p>Lastly, since we calculated the directional change of the outcomes, we can reformulate the problem to a binary classification - cases up or cases down. Let’s see if that makes anything clearer using SelectKBest feature selection for a RandomForestClassifier optimized for information gain, ie. entropy.</p>
-                <p>Another note on metrics: Classification metrics evaluate correct class assignment.  Accuracy is the simplest, merely number of correct assignments over total assignments. However, accuracy is not a good metric when you have imbalanced classes, as we do in this case.  Precision is the number of correct positives divided by all predicted positives, correct and incorrect. Recall is the number of correct positives divided by all actual positives, correct positives and false negatives.  Since what is most important in our case is the relationship between policies and desired outcome of a decrease in cases, precision is our best metric. Precision is less impacted by the large number of undesirable outcomes (increases in cases) and measures the probability of correct detection.</p>
+                <p>Since we calculated the directional change of the outcomes, we can reformulate the problem to a binary classification - cases up or cases down. Let’s see if that makes anything clearer using SelectKBest feature selection for a RandomForestClassifier optimized for information gain, ie. entropy.</p>
+                <p>The scoring function used in the univariate feature selection is mutual information classification because again, the priority is interpretability, and this function computes the feature probability distribution and measures how much knowing one of the variables reduces uncertainty about the other.</p>
+                <p>A reminder on metrics: Classification metrics evaluate correct class assignment.  Accuracy is the simplest, merely number of correct assignments over total assignments. However, accuracy is not a good metric when you have imbalanced classes, as we do in this case.  Precision is the number of correct positives divided by all predicted positives, correct and incorrect. Recall is the number of correct positives divided by all actual positives, correct positives and false negatives.  Since what is most important in our case is the relationship between policies and desired outcome of stable or decreasing cases, precision is our best metric. Precision is less impacted by the large number of undesirable outcomes (increases in cases) and measures the probability of correct detection.</p>
+                <p>Parameters used were: </p>
+                <ul>
+                    <li>Number of features to select: 12</li>
+                    <li>Selection type: Univariate Feature Selection</li>
+                    <li>Selection scoring function: 'mutual_info_classif'</li>
+                    <li>Model type: RandomForestClassifier</li>
+                    <li>Number of estimators: 500</li>
+                    <li>Criterion: 'entropy'</li>
+                </ul>
             </div>
             <div class="tipimage">
-                <img src="..\images\RF_stat_1_10x10_cfr.png" alt="Feature importance for Random Forest Classifier with statistical feature selection." width="900" height="500">
+                <img src="..\images\RFC_stat_ordinals_10x10.png.png" alt="Feature importance for Random Forest Classifier with statistical feature selection." width="900" height="500">
             </div>
+            <div class="text">
+                <p>Let's also test using RFE feature selection for a RandomForestClassifier optimized for information gain, ie. entropy.</p>
+                <p>The model used in the Recursive Feature Elimination can differ from the model used for training. In this case, I'm using a DecisionTreeClassifier. Parameters used were: </p>
+                <ul>
+                    <li>Number of features to select: 12</li>
+                    <li>Selection type: Recursive Feature Elimination</li>
+                    <li>RFE internal model: DecisionTreeClassifier</li>
+                    <li>Model type: RandomForestClassifier</li>
+                    <li>Number of estimators: 500</li>
+                    <li>Criterion: 'entropy'</li>
+                </ul>
+            </div>
+            <div class="tipimage">
+                <img src="..\images\RFC_RFE_ordinals_10x10.png" alt="Feature importance for Random Forest Classifier with RFE feature selection." width="900" height="500">
+            </div>
+            <div class='tiptext'>
+                Classification Model Evaluation
+            </div>
+            <div class='text'>
+                <p>Classification is much better suited to our problem and dataset. The goal is not to predict a precise number on a continuum, but to understand what impacts the desirable outcome, stable/negative case direction.  This aligns nicely with binary classification and you can see that alignment in the results.  The regression metric MAE was proportionally large, signifying an inability to reliably predict the outcome.  The classification metric, Precision, was high, signifying a good ability to predict the desirable outcome.  Precision was also very stable in cross-validation. [0.87, 0.86, 0.866]</p>
+                <p>In addition to testing both univariate feature selection and RFE to tune the model (shown), I also tested different variable types, both binary and ordinal (not shown, please see Github). The ordinal results improved over binary by about 10 percentage points. </p>
+            </div>
+
             <table>
                 <thead>
                     <tr>
-                        <th colspan="3">Most Important Features</th>
+                        <th colspan="3">Most Important Model Features</th>
                     </tr>
                     <tr>
                         <td>Model/Selection</td>
@@ -244,23 +310,48 @@
                 <tbody>
                     <tr>
                         <td>RFRegressor/Statistical</td>
-                        <td>Stay at home rqmts</td>
-                        <td>0.197</td>
+                        <td>Stringency index</td>
+                        <td>0.31</td>
                     </tr>
                     <tr>
                         <td>RFRegressor/RFE</td>
+                        <td>Population</td>
+                        <td>0.16</td>
+                    </tr>
+                    <tr>
+                        <td>RFRegressor/RFE</td>
+                        <td>Testing policy</td>
+                        <td>0.12</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/Statistical</td>
+                        <td>Stringency index</td>
+                        <td>0.24</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/Statistical</td>
                         <td>International Travel Controls</td>
-                        <td>0.199</td>
-                    </tr>
-                    <tr>
-                        <td>RFRegressor/RFE</td>
-                        <td>School Closing</td>
-                        <td>0.137</td>
+                        <td>0.12</td>
                     </tr>
                     <tr>
                         <td>RFClassifier/RFE</td>
                         <td>Stringency index</td>
-                        <td>0.293</td>
+                        <td>0.27</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/RFE</td>
+                        <td>Population</td>
+                        <td>0.12</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/RFE/BinaryData</td>
+                        <td>Stay at Home</td>
+                        <td>0.21</td>
+                    </tr>
+                    <tr>
+                        <td>RFClassifier/RFE/BinaryData</td>
+                        <td>Income Support</td>
+                        <td>0.165</td>
                     </tr>
                 </tbody>
             </table>
@@ -273,7 +364,7 @@
                 <p>Now that we've analyzed the data and run it through some models, what do we know about our original hypotheses?</p>
                 <ul>
                     <li>The correlations between policies and outcomes are much weaker than hoped for.</li>
-                    <li>The strongest of the admittedly weak correlations are indeed the proximity-impacting policies such as stay at home requirements, school closings, workplace closing, restrictions on travel, etc.  This aligns with a logical understanding of how the disease spreads.</li>
+                    <li>The strongest of the admittedly weak correlations are indeed the proximity-impacting policies such as stay at home requirements, school closings, workplace closing, international travel controls, etc.  This aligns with a logical understanding of how the disease spreads.</li>
                     <li>Government capabilities are indeed bounded by uncontrollable factors like urban percentages and median age. This aligns with known data, that is, that proximity is a key factor in contagion and older citizens will die at higher rates than younger ones.</li>
                 </ul>
                 <p>While the data did support the initial logic, the correlation coefficients are too small to enable strong recommendations for any specific policy. This is disappointing but perhaps as more data accumulates, better correlations will emerge and we will be more prepared for the next aerosol/droplet contagious disease.
@@ -287,8 +378,8 @@
 
             <div class="text">
                 <ol>
-                    <li>Why did some techniques work better? Since the feature correlations were fairly consistent in their weakness and in their selected priority features, I'm not certain any technique DID work better than the other. They all relied on linear regression to some extent (RFE used linear regression, too) and that only captures linear relationships. For example, the correlation visible in the graphic of the static attributes would not have been captured in the statistical or modeled calculations.</li>
-                    <li>What was the most difficult part? The two most difficult parts were 1) determining which data transformations would be most useful, and 2) determining which input variations, ie. binary flags vs ordinal policy intensities, would align best with which outcome variations, ie. changes in amounts vs changes in direction.  I tried to use as much logic as possible but there was a lot of trial and error involved.[4]</li>
+                    <li>Why did some techniques work better? Classification worked much better than regression for this problem/dataset.  The binary nature of desirable outcome and primary goal of interpretability aligned well with classification.</li>
+                    <li>What was the most difficult part? The two most difficult parts were 1) determining which data transformations would be most useful, and 2) determining which input variations, ie. binary flags vs ordinal policy intensities, would align best with which outcome variations, ie. changes in amounts vs changes in direction.  I tried to use as much logic as possible but there was a lot of trial and error involved.</li>
                     <li>What is one thing that could be improved? To improve the process, you could do more class and input balancing. For example, the inputs were weighted towards countries that tracked regions, such as the United States and Brazil. You could try taking only the totals for those countries and dropping the regions as potentially noise. (I kept them in to maximize number of datapoints available but more is not necessarily always better.) And for the classification model, the outcomes were unfortunately imbalanced towards increases in cases rather than the desired decreases. </li>
                 </ol>
             </div>
@@ -310,9 +401,6 @@
             <div>
                 <p><span>[3]</span> https://stackoverflow.com/questions/57243267/why-is-training-a-random-forest-regressor-with-mae-criterion-so-slow-compared-to
                 </p>
-            </div>
-            <div>
-                <p><span>[4]</span> Sadly, a tragic amount of jupyter notebooks were killed in the process…”Well, THAT didn’t work…”</p>
             </div>
 
 

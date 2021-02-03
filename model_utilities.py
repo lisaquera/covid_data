@@ -10,7 +10,9 @@ from sklearn.feature_selection import f_regression, mutual_info_regression
 from sklearn.feature_selection import RFE
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.metrics import accuracy_score, precision_score, recall_score
@@ -103,18 +105,21 @@ def get_UFS_features(X, y, n_features, problem_type, scoring):
     return X, named_scores[:n_features]
 
 #
-def get_RFE_features(X, y, n_features):
+def get_RFE_features(X, y, n_features, problem_type):
     '''Use Recursive Feature Elimination to get the best features for training.
     Input: X = dataframe with all data features
         y = array of labels
         n_features = integer representing number of desired features
+        problem_type = string for either regression or classification
     Output: X = dataframe with n_features selected
         feature_names = names of the subset n_features selected
     '''
     X,y = du.check_dataset_nulls(X,y)
-
-    lr = LinearRegression()
-    rfe = RFE(estimator=lr, n_features_to_select=n_features, step=1)
+    if problem_type == 'regression':
+        est = LinearRegression()
+    else:
+        est = DecisionTreeClassifier()
+    rfe = RFE(estimator=est, n_features_to_select=n_features, step=1)
     rfe.fit(X,y)
     ranks = rfe.ranking_
     print(ranks)
@@ -125,11 +130,11 @@ def get_RFE_features(X, y, n_features):
     for rank in ranks:
         if rank == 1:
             name = feats[num_index]
-            print("keep", name)
+            #print("keep", name)
             feature_names.append(name)
         else:
             name = feats[num_index]
-            print("drop", name)
+            #print("drop", name)
             X = X.drop([name], axis=1)
         num_index+=1
 
@@ -176,7 +181,7 @@ def get_train_test_data(model_data, train_cols, target_col,
         return X_train, X_test, y_train, y_test, named_scores
     elif selection == 'RFE':
         # Select the best features using Recursive Feature Elimination
-        X, feature_names = get_RFE_features(X, y, n_features)
+        X, feature_names = get_RFE_features(X, y, n_features, problem_type)
         #Split into train and test
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
         return X_train, X_test, y_train, y_test, feature_names
@@ -252,13 +257,14 @@ def train_and_score_model(model, X_train, y_train, X_test, y_test, problem_type=
     return model, metrics_dict
 
 #
-def visualize_feature_importance(model, X_train, features_used, selection=None, model_type='tree'):
+def visualize_feature_importance(model, X_train, features_used, image_path, selection=None, model_type='tree'):
     '''Create a graphic of the selected features and their importance to model outcome.
     Input: model = trained estimator
         X_train = training dataset used for estimator
         features_used = array containing the column names used in training
         selection = string representing type of feature selection performed, ['RFE', 'stat', None]
         model_type = string representing whether linear estimator or tree-based, ['tree', 'linear']
+        image_path = string for path/filename to be saved
     Output: a horizontal bar chart for feature importance.
     '''
     n_features = X_train.shape[1]
@@ -273,5 +279,6 @@ def visualize_feature_importance(model, X_train, features_used, selection=None, 
     plt.yticks(np.arange(n_features), features)
     plt.xlabel('Feature importance')
     plt.ylabel('Feature')
-    plt.savefig('RF_'+selection+'_'+str(n_outputs)+'_10x10.png')
+    # 'RF_'+selection+'_'+str(n_outputs)+'_10x10.png'
+    plt.savefig(image_path)
     plt.show()
